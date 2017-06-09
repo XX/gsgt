@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Graphics by Squares: a Gfx-rs Tutorial</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+  </style>
+  <link rel="stylesheet" href="pandoc.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+  <!-- <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      jax: ["input/TeX", "output/HTML-CSS"],
+      MathML: {
+        extensions: ["content-mathml.js"]
+      },
+      "HTML-CSS": { webFont: "Neo-Euler" }
+    });
+  </script> -->
+</head>
+<body>
+<header>
+<h1 class="title">Graphics by Squares: a Gfx-rs Tutorial</h1>
+</header>
+<p>I'm making a little toy to understand gfx-rs better. But as a side product, I also write this little tutorial to help other people to learn gfx-rs too.</p>
+<h2 id="getting-started">Getting started</h2>
+<p>Let's write something that compiles and runs.</p>
+<pre><code>$ cargo init sqtoy</code></pre>
+<p>Add this to <code>Cargo.toml</code>:</p>
+<pre class="toml"><code>[dependencies]
+gfx = &quot;0.16&quot;
+gfx_window_glutin = &quot;0.16&quot;
+glutin = &quot;0.8&quot;</code></pre>
+<p>And put this into <code>main.rs</code>:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="at">#[</span>macro_use<span class="at">]</span> <span class="kw">extern</span> <span class="kw">crate</span> gfx;
+
+<span class="kw">extern</span> <span class="kw">crate</span> gfx_window_glutin;
+<span class="kw">extern</span> <span class="kw">crate</span> glutin;
+
+<span class="kw">use</span> gfx::traits::FactoryExt;
+<span class="kw">use</span> gfx::Device;
+<span class="kw">use</span> gfx_window_glutin <span class="kw">as</span> gfx_glutin;
+
+<span class="kw">pub</span> <span class="kw">type</span> ColorFormat = gfx::format::Rgba8;
+<span class="kw">pub</span> <span class="kw">type</span> DepthFormat = gfx::format::DepthStencil;
+
+<span class="kw">const</span> BLACK: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">4</span><span class="op">]</span> = <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span>, <span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>;
+
+<span class="kw">pub</span> <span class="kw">fn</span> main() <span class="op">{</span>
+    <span class="kw">let</span> events_loop = glutin::EventsLoop::new();
+    <span class="kw">let</span> builder = glutin::WindowBuilder::new()
+        .with_title(<span class="st">&quot;Square Toy&quot;</span>.to_string())
+        .with_dimensions(<span class="dv">800</span>, <span class="dv">800</span>)
+        .with_vsync();
+    <span class="kw">let</span> (window, <span class="kw">mut</span> device, <span class="kw">mut</span> factory, main_color, <span class="kw">mut</span> main_depth) =
+        gfx_glutin::init::&lt;ColorFormat, DepthFormat&gt;(builder, &amp;events_loop);
+
+    <span class="kw">let</span> <span class="kw">mut</span> encoder: gfx::Encoder&lt;_, _&gt; = factory.create_command_buffer().into();
+
+    <span class="kw">let</span> <span class="kw">mut</span> running = <span class="cn">true</span>;
+    <span class="kw">while</span> running <span class="op">{</span>
+        events_loop.poll_events(|glutin::Event::WindowEvent<span class="op">{</span>window_id: _, event<span class="op">}</span>| <span class="op">{</span>
+            <span class="kw">use</span> glutin::WindowEvent::*;
+            <span class="kw">match</span> event <span class="op">{</span>
+                KeyboardInput(_, _, <span class="cn">Some</span>(glutin::VirtualKeyCode::Escape), _)
+                | Closed =&gt; running = <span class="cn">false</span>,
+                Resized(_, _) =&gt; <span class="op">{</span>
+                    gfx_glutin::update_views(&amp;window, &amp;<span class="kw">mut</span> main_color, &amp;<span class="kw">mut</span> main_depth);
+                <span class="op">}</span>,
+                _ =&gt; (),
+            <span class="op">}</span>
+        <span class="op">}</span>);
+
+        encoder.clear(&amp;main_color, BLACK);
+        encoder.flush(&amp;<span class="kw">mut</span> device);
+        window.swap_buffers().unwrap();
+        device.cleanup();
+    <span class="op">}</span>
+<span class="op">}</span></code></pre></div>
+<p>As you can see, we use gfx with glutin and OpenGL. Shortly what the code does:</p>
+<ol>
+<li>Creates an event loop and prepares to create a window with title “Square Toy”</li>
+<li>Runs <code>gfx_window_glutin::init()</code> to get <code>glutin::Window</code>, <code>gfx_device_gl::Device</code> and a bunch or other things</li>
+<li>Uses the <code>factory</code> to create an <code>Encoder</code> that allows you to avoid calling raw OpenGL procedures.</li>
+<li>Each frame:
+<ol>
+<li>Check whether it's the time to exit</li>
+<li>Fill the screen with the color you want (it's <code>BLACK</code>)</li>
+<li>Actually do it.</li>
+<li>Since our buffering is at least double, switch buffers</li>
+<li>Cleanup</li>
+</ol></li>
+</ol>
+<p>Great! Whatever you use, it is always simple to draw a black screen full of nothing. Unfortunately, drawing something else is usually a little bit more complicated. In gfx-rs it requires a pipeline, vertices, shaders...</p>
+<h2 id="overview-of-gfx-rs-architecture">Overview of gfx-rs architecture</h2>
+<p><img src="https://i.imgur.com/Dgj7PX8.jpg" /></p>
+<p>Gfx-rs is a library that abstracts over four low-level graphics APIs: OpenGL (ordinary and ES), DirectX, Metal and Vulkan. Because of that, it cannot provide a direct API to do things. Neither it should though, as graphics APIs (especially older one like OpenGL) are extremely verbose, imperative and stateful. Also they are neither safe nor easy to use.</p>
+<p>In gfx-rs, everything is built around three core types: <code>Factory</code>, <code>Encoder</code> and <code>Device</code>. The first is used to create things, the second is a buffer that stores graphics commands to be executed by the <code>Device</code>, and the <code>Device</code> translates commands into low-level API calls.</p>
+<p>Also, like current-get API like DX12 and Vulcan but unlike OpenGL, the pipeline state is incapsulated in pipeline state objects (PSO). You can have a lot of PSOs and switch between them. But to create a PSO, first you have to define a pipeline and specify vertex atributes and uniforms.</p>
+<p>There's a <a href="https://gfx-rs.github.io/2016/09/14/programming-model.html">great post</a> in Gfx-rs blog describing Gfx-rs architecture in much more detail.</p>
+<h2 id="drawing-a-square">Drawing a square</h2>
+<p>We need a pipeline to draw anything on the screen.</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="pp">gfx_defines!</span> <span class="op">{</span>
+    vertex Vertex <span class="op">{</span>
+        pos: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">2</span><span class="op">]</span> = <span class="st">&quot;a_Pos&quot;</span>,
+        color: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span> = <span class="st">&quot;a_Color&quot;</span>,
+    <span class="op">}</span>
+
+    pipeline pipe <span class="op">{</span>
+        vbuf: gfx::VertexBuffer&lt;Vertex&gt; = (),
+        out: gfx::RenderTarget&lt;ColorFormat&gt; = <span class="st">&quot;Target0&quot;</span>,
+    <span class="op">}</span>
+<span class="op">}</span></code></pre></div>
+<p>In graphics programming, everything is made of triangles and triangles are defined by their vertices. Vertices can carry additional information beside the coordinates, ours have only 2D position <code>a_Pos</code> and color <code>a_Color</code>. The pipeline has only the vertex buffer and the render target, no textures, no transformations, nothing fancy.</p>
+<p>The GPU doesn't know what <em>exactly</em> to do with the vertices and what color pixels should have. To define the behaviour <em>shaders</em> are used. There're two kinds of shaders vextex shaders and fragment shaders (let's ignore geometric shaders we don't use). Both are executed in parallel on the GPU. A vertex shader runs on each vertex and transfroms it in a some way. A fragment shader runs on each fragment (usually pixel) and determinates what the color the fragment will have.</p>
+<p>Our vertex shader is very, very simple:</p>
+<div class="sourceCode"><pre class="sourceCode glsl"><code class="sourceCode glsl"><span class="co">// shaders/rect_150.glslv</span>
+<span class="pp">#version 150 core</span>
+
+<span class="dt">in</span> <span class="dt">vec2</span> a_Pos;
+<span class="dt">in</span> <span class="dt">vec3</span> a_Color;
+<span class="dt">out</span> <span class="dt">vec4</span> v_Color;
+
+<span class="dt">void</span> <span class="fu">main</span>() {
+    v_Color = <span class="dt">vec4</span>(a_Color, <span class="fl">1.0</span>);
+    <span class="bu">gl_Position</span> = <span class="dt">vec4</span>(a_Pos, <span class="fl">0.0</span>, <span class="fl">1.0</span>);
+}</code></pre></div>
+<p>OpenGL uses <code>(x, y, z, w)</code> <a href="http://www.tomdalling.com/blog/modern-opengl/explaining-homogenous-coordinates-and-projective-geometry/">homogeneous coordinates</a> and RGBA colors. The shader just translates <code>a_Pos</code> and <code>a_Color</code> into OpenGL position and color.</p>
+<p>The fragment shader is even more simple:</p>
+<div class="sourceCode"><pre class="sourceCode glsl"><code class="sourceCode glsl"><span class="co">// shaders/rect_150.glslf</span>
+<span class="pp">#version 150 core</span>
+
+<span class="dt">in</span> <span class="dt">vec4</span> v_Color;
+<span class="dt">out</span> <span class="dt">vec4</span> Target0;
+
+<span class="dt">void</span> <span class="fu">main</span>() {
+    Target0 = v_Color;
+}</code></pre></div>
+<p>It just sets the pixel color to <code>v_Color</code> value <a href="http://www.geeks3d.com/20130514/opengl-interpolation-qualifiers-glsl-tutorial/">interpolated</a> from vertices <code>v_Color</code> values by the GPU.</p>
+<p>Let's define our vertices:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">const</span> WHITE: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span> = <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">1.0</span>, <span class="dv">1.0</span><span class="op">]</span>;
+
+<span class="kw">const</span> SQUARE: <span class="op">[</span>Vertex; <span class="dv">3</span><span class="op">]</span> = <span class="op">[</span>
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>
+<span class="op">]</span>;</code></pre></div>
+<p>And initalize everything we need for drawing:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">let</span> <span class="kw">mut</span> encoder: gfx::Encoder&lt;_, _&gt; = factory.create_command_buffer().into();
+<span class="kw">let</span> pso = factory.create_pipeline_simple(
+    <span class="pp">include_bytes!</span>(<span class="pp">concat!</span>(<span class="pp">env!</span>(<span class="st">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="st">&quot;/shaders/rect_150.glslv&quot;</span>)),
+    <span class="pp">include_bytes!</span>(<span class="pp">concat!</span>(<span class="pp">env!</span>(<span class="st">&quot;CARGO_MANIFEST_DIR&quot;</span>), <span class="st">&quot;/shaders/rect_150.glslf&quot;</span>)),
+    pipe::new()
+).unwrap();
+<span class="kw">let</span> (vertex_buffer, slice) = factory.create_vertex_buffer_with_slice(&amp;SQUARE, ());
+<span class="kw">let</span> <span class="kw">mut</span> data = pipe::Data <span class="op">{</span>
+    vbuf: vertex_buffer,
+    out: main_color
+<span class="op">}</span>;</code></pre></div>
+<p>Since <code>main_color</code> is moved into <code>data</code>, we need to replace <code>&amp;main_color</code> with <code>&amp;data.out</code> everywhere. And then, in the event loop, we draw:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">encoder.clear(&amp;data.out, BLACK);
+encoder.draw(&amp;slice, &amp;pso, &amp;data);
+encoder.flush(&amp;<span class="kw">mut</span> device);</code></pre></div>
+<p>And the program was run.</p>
+<p><img src="https://i.imgur.com/7u3ol88.png" width="600" height="600" /></p>
+<p>This is not a square. The reason why it is not a square is simple: it has three vertices, so it must be a triange. Also OpenGL doesn't know anything about squares, it can only draw triangles.</p>
+<p>You could just add three more vertices to draw a square by two triangles. Like this:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">const</span> SQUARE: <span class="op">[</span>Vertex; <span class="dv">6</span><span class="op">]</span> = <span class="op">[</span>
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+<span class="op">]</span>;</code></pre></div>
+<p>But instead we can define just 4 vertices and reuse them with Element Buffer Objects.</p>
+<p><img src="http://www.opengl-tutorial.org/assets/images/tuto-9-vbo-indexing/indexing1.png" /></p>
+<p>So let's define vertices and indices:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">const</span> SQUARE: &amp;<span class="op">[</span>Vertex<span class="op">]</span> = &amp;<span class="op">[</span>
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, -<span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span>-<span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+    Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
+<span class="op">]</span>;
+
+<span class="kw">const</span> INDICIES: &amp;<span class="op">[</span><span class="dt">u16</span><span class="op">]</span> = &amp;<span class="op">[</span><span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">0</span><span class="op">]</span>;</code></pre></div>
+<p>And use them:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">let</span> (vertex_buffer, slice) =
+    factory.create_vertex_buffer_with_slice(SQUARE, INDICIES);</code></pre></div>
+<p>Compile the program and run.</p>
+<p><img src="https://i.imgur.com/5JfHmm6.png" width="600" height="600" /></p>
+<p>Finally, a square.</p>
+</body>
+</html>
