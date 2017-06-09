@@ -17,7 +17,7 @@ body {
     line-height: 1.7;
     padding: 1em;
     margin: auto;
-    max-width: 47em;
+    max-width: 48em;
     background: #fefefe;
 }
 
@@ -81,7 +81,7 @@ p {
 }
 
 p {
-    text-indent: 1.7em;
+    margin: 0.7em 0;
     hyphens: auto;
 }
 
