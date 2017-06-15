@@ -220,18 +220,225 @@ const SQUARE: &[Vertex] = &[
     Vertex { pos: [0.5, 0.5], color: WHITE },
 ];
 
-const INDICIES: &[u16] = &[0, 1, 2, 2, 3, 0];
+const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 ```
 
 And use them:
 
 ```rust
 let (vertex_buffer, slice) =
-    factory.create_vertex_buffer_with_slice(SQUARE, INDICIES);
+    factory.create_vertex_buffer_with_slice(SQUARE, INDICES);
 ```
 
 Compile the program and run.
 
 ![](https://i.imgur.com/5JfHmm6.png){width=600px height=600px}
 
-Finally, a square.
+Finally, a square. The most basic thing is done, now we can do further.
+
+## Going deeper
+
+The first thing you should notice is that the square we drew is actually a rectangle: when you resize the window proportions change. That's because OpenGL uses *normalized* coordinates where both x and y are from –1 to 1. So we need to adjust the square vertices to the window ratio.
+
+The second thing is: our vertices and indices are pre-defined and constant. We can't adjust them, we can't make new squares on the fly.
+
+Let's fix both of these issues. Define a vertice generator:
+
+```rust
+#[derive(Debug, Clone, Copy)]
+struct Square {
+    pub pos: (f32, f32),
+    pub size: f32,
+    pub color: [f32; 3]
+}
+
+// A cube is a pile of infinitely (as continuum) many squares
+// This data stucture is finite, so we call it “pseudo”
+#[derive(Debug)]
+struct Pseudocube {
+    squares: Vec<Square>,
+    ratio: f32,
+}
+
+impl Pseudocube {
+    pub fn new() -> Self {
+        Pseudocube {
+            squares: vec![],
+            ratio: 1.0,
+        }
+    }
+
+    pub fn add_square(&mut self, x: f32, y: f32, size: f32, color: [f32; 3]) {
+        let sq = Square {
+            pos: (x, y),
+            size, color
+        };
+        self.squares.push(sq);
+    }
+
+    pub fn get_vertices_indices(&self) -> (Vec<Vertex>, Vec<u16>) {
+        let (mut vs, mut is) = (vec![], vec![]);
+        for (i, sq) in self.squares.iter().enumerate() {
+            let (pos, half) = (sq.pos, 0.5 * sq.size);
+            let i = i as u16;
+
+            let (hx, hy);
+            if self.ratio > 1.0 {
+                hx = half / self.ratio;
+                hy = half;
+            }
+            else {
+                hx = half;
+                hy = half * self.ratio;
+            }
+
+            vs.extend(&[
+                Vertex { pos: [pos.0 + hx, pos.1 - hy], color: sq.color },
+                Vertex { pos: [pos.0 - hx, pos.1 - hy], color: sq.color },
+                Vertex { pos: [pos.0 - hx, pos.1 + hy], color: sq.color },
+                Vertex { pos: [pos.0 + hx, pos.1 + hy], color: sq.color },
+            ]);
+            is.extend(&[
+                4*i, 4*i + 1, 4*i + 2, 4*i + 2, 4*i + 3, 4*i
+            ]);
+        }
+
+        (vs, is)
+    }
+
+    pub fn update_ratio(&mut self, ratio: f32) {
+        self.ratio = ratio
+    }
+}
+```
+
+And use it:
+
+```rust
+pub fn main() {
+    let mut cube = Pseudocube::new();
+    cube.add_square(0.0, 0.0, 1.0, WHITE);
+    // ...
+    let (vertices, indices) = cube.get_vertices_indices();
+    let (vertex_buffer, mut slice) =
+        factory.create_vertex_buffer_with_slice(&vertices, &*indices);
+    // ...
+    let mut running = true;
+    let mut needs_update = false;
+    while running {
+        if needs_update {
+            let (vs, is) = cube.get_vertices_indices();
+            let (vbuf, sl) = factory.create_vertex_buffer_with_slice(&vs, &*is);
+
+            data.vbuf = vbuf;
+            slice = sl;
+
+            needs_update = false
+        }
+        // ...
+                Resized(w, h) => {
+                    gfx_glutin::update_views(&window, &mut data.out, &mut main_depth);
+                    cube.update_ratio(w as f32 / h as f32);
+                    needs_update = true
+                },
+        // ...
+    }
+}
+```
+
+Great. Now our squares are always squares. Time to add some cursor:
+
+```rust
+#[derive(Debug, Clone, Copy)]
+enum Cursor {
+    Plain((f32, f32), [f32; 3]),
+    Growing((f32, f32), f32, [f32; 3])
+}
+
+impl Cursor {
+    fn to_square(self) -> Square {
+        match self {
+            Cursor::Plain(xy, color) => Square { pos: xy, size: 0.05, color },
+            Cursor::Growing(xy, size, color) => Square { pos: xy, size, color },
+        }
+    }
+}
+
+// ...
+
+impl Pseudocube {
+// ...
+    pub fn update_cursor_position(&mut self, x: f32, y: f32) {
+        let x = 2.0*x - 1.0;
+        let y = -2.0*y + 1.0;
+        let cursor = match self.cursor {
+            Cursor::Plain(_, color) => Cursor::Plain((x, y), color),
+            Cursor::Growing(_, size, color) => Cursor::Growing((x, y), size, color),
+        };
+        self.cursor = cursor;
+    }
+}
+// ...
+                Resized(w, h) => {
+                    gfx_glutin::update_views(&window, &mut data.out, &mut main_depth);
+                    cube.update_ratio(w as f32 / h as f32);
+                    window_size = (w as f32, h as f32);
+                    needs_update = true
+                },
+                MouseMoved(x, y) => {
+                    cube.update_cursor_position(
+                        x as f32 / window_size.0,
+                        y as f32 / window_size.1
+                    );
+                    needs_update = true
+                },
+```
+
+
+It's alive. **IT'S ALIVE!** Yeah, things always becomes more cool when you add a little bit of interactivity.
+
+Let's grow squares:
+
+```toml
+[dependencies]
+rand = "*"
+```
+
+```rust
+impl Pseudocube {
+// ...
+    pub fn start_growing(&mut self) {
+        if let Cursor::Plain(xy, color) = self.cursor {
+            self.cursor = Cursor::Growing(xy, 0.05, color)
+        }
+    }
+
+    pub fn stop_growing(&mut self) {
+        if let Cursor::Growing(xy, size, color) = self.cursor {
+            self.squares.push (Cursor::Growing(xy, size, color).to_square());
+            self.cursor = Cursor::Plain(xy, rand::random())
+        }
+    }
+
+    pub fn tick(&mut self) {
+        if let Cursor::Growing(xy, size, color) = self.cursor {
+            self.cursor = Cursor::Growing(xy, size + 0.01, color)
+        }
+    }
+}
+// ...
+                MouseInput(ElementState::Pressed, MouseButton::Left) =>
+                    cube.start_growing(),
+                MouseInput(ElementState::Released, MouseButton::Left) =>
+                    cube.stop_growing(),
+                _ => (),
+            }
+
+            cube.tick();
+```
+
+And squares were grown:
+
+![](https://i.imgur.com/rumV7tU.png){width=600px height=600px}
+
+## Textures and uniforms

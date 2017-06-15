@@ -222,12 +222,192 @@ encoder.flush(&amp;<span class="kw">mut</span> device);</code></pre></div>
     Vertex <span class="op">{</span> pos: <span class="op">[</span><span class="dv">0.5</span>, <span class="dv">0.5</span><span class="op">]</span>, color: WHITE <span class="op">}</span>,
 <span class="op">]</span>;
 
-<span class="kw">const</span> INDICIES: &amp;<span class="op">[</span><span class="dt">u16</span><span class="op">]</span> = &amp;<span class="op">[</span><span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">0</span><span class="op">]</span>;</code></pre></div>
+<span class="kw">const</span> INDICES: &amp;<span class="op">[</span><span class="dt">u16</span><span class="op">]</span> = &amp;<span class="op">[</span><span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">0</span><span class="op">]</span>;</code></pre></div>
 <p>And use them:</p>
 <div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">let</span> (vertex_buffer, slice) =
-    factory.create_vertex_buffer_with_slice(SQUARE, INDICIES);</code></pre></div>
+    factory.create_vertex_buffer_with_slice(SQUARE, INDICES);</code></pre></div>
 <p>Compile the program and run.</p>
 <p><img src="https://i.imgur.com/5JfHmm6.png" width="600" height="600" /></p>
-<p>Finally, a square.</p>
+<p>Finally, a square. The most basic thing is done, now we can do further.</p>
+<h2 id="going-deeper">Going deeper</h2>
+<p>The first thing you should notice is that the square we drew is actually a rectangle: when you resize the window proportions change. That's because OpenGL uses <em>normalized</em> coordinates where both x and y are from –1 to 1. So we need to adjust the square vertices to the window ratio.</p>
+<p>The second thing is: our vertices and indices are pre-defined and constant. We can't adjust them, we can't make new squares on the fly.</p>
+<p>Let's fix both of these issues. Define a vertice generator:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Debug</span><span class="at">,</span> <span class="bu">Clone</span><span class="at">,</span> <span class="bu">Copy</span><span class="at">)]</span>
+<span class="kw">struct</span> Square <span class="op">{</span>
+    <span class="kw">pub</span> pos: (<span class="dt">f32</span>, <span class="dt">f32</span>),
+    <span class="kw">pub</span> size: <span class="dt">f32</span>,
+    <span class="kw">pub</span> color: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span>
+<span class="op">}</span>
+
+<span class="co">// A cube is a pile of infinitely (as continuum) many squares</span>
+<span class="co">// This data stucture is finite, so we call it “pseudo”</span>
+<span class="at">#[</span>derive<span class="at">(</span><span class="bu">Debug</span><span class="at">)]</span>
+<span class="kw">struct</span> Pseudocube <span class="op">{</span>
+    squares: <span class="dt">Vec</span>&lt;Square&gt;,
+    ratio: <span class="dt">f32</span>,
+<span class="op">}</span>
+
+<span class="kw">impl</span> Pseudocube <span class="op">{</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> new() -&gt; <span class="kw">Self</span> <span class="op">{</span>
+        Pseudocube <span class="op">{</span>
+            squares: <span class="pp">vec!</span><span class="op">[]</span>,
+            ratio: <span class="dv">1.0</span>,
+        <span class="op">}</span>
+    <span class="op">}</span>
+
+    <span class="kw">pub</span> <span class="kw">fn</span> add_square(&amp;<span class="kw">mut</span> <span class="kw">self</span>, x: <span class="dt">f32</span>, y: <span class="dt">f32</span>, size: <span class="dt">f32</span>, color: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span>) <span class="op">{</span>
+        <span class="kw">let</span> sq = Square <span class="op">{</span>
+            pos: (x, y),
+            size, color
+        <span class="op">}</span>;
+        <span class="kw">self</span>.squares.push(sq);
+    <span class="op">}</span>
+
+    <span class="kw">pub</span> <span class="kw">fn</span> get_vertices_indices(&amp;<span class="kw">self</span>) -&gt; (<span class="dt">Vec</span>&lt;Vertex&gt;, <span class="dt">Vec</span>&lt;<span class="dt">u16</span>&gt;) <span class="op">{</span>
+        <span class="kw">let</span> (<span class="kw">mut</span> vs, <span class="kw">mut</span> is) = (<span class="pp">vec!</span><span class="op">[]</span>, <span class="pp">vec!</span><span class="op">[]</span>);
+        <span class="kw">for</span> (i, sq) <span class="kw">in</span> <span class="kw">self</span>.squares.iter().enumerate() <span class="op">{</span>
+            <span class="kw">let</span> (pos, half) = (sq.pos, <span class="dv">0.5</span> * sq.size);
+            <span class="kw">let</span> i = i <span class="kw">as</span> <span class="dt">u16</span>;
+
+            <span class="kw">let</span> (hx, hy);
+            <span class="kw">if</span> <span class="kw">self</span>.ratio &gt; <span class="dv">1.0</span> <span class="op">{</span>
+                hx = half / <span class="kw">self</span>.ratio;
+                hy = half;
+            <span class="op">}</span>
+            <span class="kw">else</span> <span class="op">{</span>
+                hx = half;
+                hy = half * <span class="kw">self</span>.ratio;
+            <span class="op">}</span>
+
+            vs.extend(&amp;<span class="op">[</span>
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, color: sq.color <span class="op">}</span>,
+            <span class="op">]</span>);
+            is.extend(&amp;<span class="op">[</span>
+                <span class="dv">4</span>*i, <span class="dv">4</span>*i + <span class="dv">1</span>, <span class="dv">4</span>*i + <span class="dv">2</span>, <span class="dv">4</span>*i + <span class="dv">2</span>, <span class="dv">4</span>*i + <span class="dv">3</span>, <span class="dv">4</span>*i
+            <span class="op">]</span>);
+        <span class="op">}</span>
+
+        (vs, is)
+    <span class="op">}</span>
+
+    <span class="kw">pub</span> <span class="kw">fn</span> update_ratio(&amp;<span class="kw">mut</span> <span class="kw">self</span>, ratio: <span class="dt">f32</span>) <span class="op">{</span>
+        <span class="kw">self</span>.ratio = ratio
+    <span class="op">}</span>
+<span class="op">}</span></code></pre></div>
+<p>And use it:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">pub</span> <span class="kw">fn</span> main() <span class="op">{</span>
+    <span class="kw">let</span> <span class="kw">mut</span> cube = Pseudocube::new();
+    cube.add_square(<span class="dv">0.0</span>, <span class="dv">0.0</span>, <span class="dv">1.0</span>, WHITE);
+    <span class="co">// ...</span>
+    <span class="kw">let</span> (vertices, indices) = cube.get_vertices_indices();
+    <span class="kw">let</span> (vertex_buffer, <span class="kw">mut</span> slice) =
+        factory.create_vertex_buffer_with_slice(&amp;vertices, &amp;*indices);
+    <span class="co">// ...</span>
+    <span class="kw">let</span> <span class="kw">mut</span> running = <span class="cn">true</span>;
+    <span class="kw">let</span> <span class="kw">mut</span> needs_update = <span class="cn">false</span>;
+    <span class="kw">while</span> running <span class="op">{</span>
+        <span class="kw">if</span> needs_update <span class="op">{</span>
+            <span class="kw">let</span> (vs, is) = cube.get_vertices_indices();
+            <span class="kw">let</span> (vbuf, sl) = factory.create_vertex_buffer_with_slice(&amp;vs, &amp;*is);
+
+            data.vbuf = vbuf;
+            slice = sl;
+
+            needs_update = <span class="cn">false</span>
+        <span class="op">}</span>
+        <span class="co">// ...</span>
+                Resized(w, h) =&gt; <span class="op">{</span>
+                    gfx_glutin::update_views(&amp;window, &amp;<span class="kw">mut</span> data.out, &amp;<span class="kw">mut</span> main_depth);
+                    cube.update_ratio(w <span class="kw">as</span> <span class="dt">f32</span> / h <span class="kw">as</span> <span class="dt">f32</span>);
+                    needs_update = <span class="cn">true</span>
+                <span class="op">}</span>,
+        <span class="co">// ... </span>
+    <span class="op">}</span>
+<span class="op">}</span></code></pre></div>
+<p>Great. Now our squares are always squares. Time to add some cursor:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Debug</span><span class="at">,</span> <span class="bu">Clone</span><span class="at">,</span> <span class="bu">Copy</span><span class="at">)]</span>
+<span class="kw">enum</span> Cursor <span class="op">{</span>
+    Plain((<span class="dt">f32</span>, <span class="dt">f32</span>), <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span>),
+    Growing((<span class="dt">f32</span>, <span class="dt">f32</span>), <span class="dt">f32</span>, <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span>)
+<span class="op">}</span>
+
+<span class="kw">impl</span> Cursor <span class="op">{</span>
+    <span class="kw">fn</span> to_square(<span class="kw">self</span>) -&gt; Square <span class="op">{</span>
+        <span class="kw">match</span> <span class="kw">self</span> <span class="op">{</span>
+            Cursor::Plain(xy, color) =&gt; Square <span class="op">{</span> pos: xy, size: <span class="dv">0.05</span>, color <span class="op">}</span>,
+            Cursor::Growing(xy, size, color) =&gt; Square <span class="op">{</span> pos: xy, size, color <span class="op">}</span>,
+        <span class="op">}</span>
+    <span class="op">}</span>
+<span class="op">}</span>
+
+<span class="co">// ...</span>
+
+<span class="kw">impl</span> Pseudocube <span class="op">{</span>
+<span class="co">// ...</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> update_cursor_position(&amp;<span class="kw">mut</span> <span class="kw">self</span>, x: <span class="dt">f32</span>, y: <span class="dt">f32</span>) <span class="op">{</span>
+        <span class="kw">let</span> x = <span class="dv">2.0</span>*x - <span class="dv">1.0</span>; 
+        <span class="kw">let</span> y = -<span class="dv">2.0</span>*y + <span class="dv">1.0</span>;
+        <span class="kw">let</span> cursor = <span class="kw">match</span> <span class="kw">self</span>.cursor <span class="op">{</span>
+            Cursor::Plain(_, color) =&gt; Cursor::Plain((x, y), color),
+            Cursor::Growing(_, size, color) =&gt; Cursor::Growing((x, y), size, color),
+        <span class="op">}</span>;
+        <span class="kw">self</span>.cursor = cursor;
+    <span class="op">}</span>
+<span class="op">}</span>
+<span class="co">// ...</span>
+                Resized(w, h) =&gt; <span class="op">{</span>
+                    gfx_glutin::update_views(&amp;window, &amp;<span class="kw">mut</span> data.out, &amp;<span class="kw">mut</span> main_depth);
+                    cube.update_ratio(w <span class="kw">as</span> <span class="dt">f32</span> / h <span class="kw">as</span> <span class="dt">f32</span>);
+                    window_size = (w <span class="kw">as</span> <span class="dt">f32</span>, h <span class="kw">as</span> <span class="dt">f32</span>);
+                    needs_update = <span class="cn">true</span>
+                <span class="op">}</span>,
+                MouseMoved(x, y) =&gt; <span class="op">{</span>
+                    cube.update_cursor_position(
+                        x <span class="kw">as</span> <span class="dt">f32</span> / window_size.<span class="dv">0</span>,
+                        y <span class="kw">as</span> <span class="dt">f32</span> / window_size.<span class="dv">1</span>
+                    );
+                    needs_update = <span class="cn">true</span>
+                <span class="op">}</span>,</code></pre></div>
+<p>It's alive. <strong>IT'S ALIVE!</strong> Yeah, things always becomes more cool when you add a little bit of interactivity.</p>
+<p>Let's grow squares:</p>
+<pre class="toml"><code>[dependencies]
+rand = &quot;*&quot;</code></pre>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">impl</span> Pseudocube <span class="op">{</span>
+<span class="co">// ...</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> start_growing(&amp;<span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span>
+        <span class="kw">if</span> <span class="kw">let</span> Cursor::Plain(xy, color) = <span class="kw">self</span>.cursor <span class="op">{</span>
+            <span class="kw">self</span>.cursor = Cursor::Growing(xy, <span class="dv">0.05</span>, color)
+        <span class="op">}</span>
+    <span class="op">}</span>
+
+    <span class="kw">pub</span> <span class="kw">fn</span> stop_growing(&amp;<span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span>
+        <span class="kw">if</span> <span class="kw">let</span> Cursor::Growing(xy, size, color) = <span class="kw">self</span>.cursor <span class="op">{</span>
+            <span class="kw">self</span>.squares.push (Cursor::Growing(xy, size, color).to_square());
+            <span class="kw">self</span>.cursor = Cursor::Plain(xy, rand::random())
+        <span class="op">}</span>
+    <span class="op">}</span>
+
+    <span class="kw">pub</span> <span class="kw">fn</span> tick(&amp;<span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span>
+        <span class="kw">if</span> <span class="kw">let</span> Cursor::Growing(xy, size, color) = <span class="kw">self</span>.cursor <span class="op">{</span>
+            <span class="kw">self</span>.cursor = Cursor::Growing(xy, size + <span class="dv">0.01</span>, color)
+        <span class="op">}</span>
+    <span class="op">}</span>
+<span class="op">}</span>
+<span class="co">// ...</span>
+                MouseInput(ElementState::Pressed, MouseButton::Left) =&gt;
+                    cube.start_growing(),
+                MouseInput(ElementState::Released, MouseButton::Left) =&gt;
+                    cube.stop_growing(),
+                _ =&gt; (),
+            <span class="op">}</span>
+
+            cube.tick();</code></pre></div>
+<p>And squares were grown:</p>
+<p><img src="https://i.imgur.com/rumV7tU.png" width="600" height="600" /></p>
+<h2 id="textures-and-uniforms">Textures and uniforms</h2>
 </body>
 </html>
