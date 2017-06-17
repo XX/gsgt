@@ -31,7 +31,7 @@ use gfx::traits::FactoryExt;
 use gfx::Device;
 use gfx_window_glutin as gfx_glutin;
 
-pub type ColorFormat = gfx::format::Rgba8;
+pub type ColorFormat = gfx::format::Srgba8;
 pub type DepthFormat = gfx::format::DepthStencil;
 
 const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -531,10 +531,10 @@ fn load_texture<F, R>(factory: &mut F, path: &str) -> gfx::handle::ShaderResourc
 Add uv coordinates to vertices:
 
 ```rust
-                Vertex { pos: [pos.0 + hx, pos.1 - hy], uv: [1.0, 0.0], color: sq.color },
-                Vertex { pos: [pos.0 - hx, pos.1 - hy], uv: [0.0, 0.0], color: sq.color },
-                Vertex { pos: [pos.0 - hx, pos.1 + hy], uv: [0.0, 1.0], color: sq.color },
-                Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 1.0], color: sq.color },
+Vertex { pos: [pos.0 + hx, pos.1 - hy], uv: [1.0, 0.0], color: sq.color },
+Vertex { pos: [pos.0 - hx, pos.1 - hy], uv: [0.0, 0.0], color: sq.color },
+Vertex { pos: [pos.0 - hx, pos.1 + hy], uv: [0.0, 1.0], color: sq.color },
+Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 1.0], color: sq.color },
 ```
 
 And load the texture:
@@ -568,3 +568,78 @@ Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 0.0], color: sq.color },
 And then...
 
 ![](https://i.imgur.com/8li9Csm.png){width=600px height=600px}
+
+Great! But what if you actually like plain colors more? We need a switch. We need a uniform.
+
+Uniforms are global constants of shaders. They are used to pass various information into shaders: transformation matices, mouse position or some kind of switch. There're two ways to create a uniform in gfx-rs, the first is to just declare a single value in the pipeline like this:
+
+```rust
+switch: gfx::Global<i32> = "i_Switch",
+```
+
+The second way is to define a group of constants like
+
+```rust
+constant Globals {
+    mx_vp: [[f32; 4]; 4] = "u_ViewProj",
+    num_lights: u32 = "u_NumLights",
+}
+```
+
+and then create a constant buffer. We'll use the first way because it's the simplest one.
+
+So let's change the shader a little bit:
+
+```glsl
+    if(i_Switch == 0) {
+        if(aw == vec3(0.0, 0.0, 0.0)) {
+            Target0 = 0.20 * v_Color;
+        } else {
+            Target0 = vec4(aw, 1.0);
+        }
+    } else {
+        Target0 = v_Color;
+    }
+```
+
+And add some code:
+
+```rust
+let mut data = pipe::Data {
+    vbuf: vertex_buffer,
+    awesome: (texture, sampler),
+    switch: 0,
+    out: main_color
+};
+```
+
+```rust
+    KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Space), _) =>
+        if data.switch == 0 {
+            data.switch = 1
+        } else {
+            data.switch = 0
+        },
+```
+
+And we are done.
+
+## Conclusion
+
+Programming is the art of data transformation. Graphics programming is a great example of this statement: GPU does no magic by itself. You have to feed it with vertex data and define the transformations (shaders) so it could transform this data, in a simple and direct way, into another kind of data: array of pixels to be shown on the screen.
+
+Gfx-rs is a great library helping you with that. It provides a simple but clear and *rustic* way to interact with GPU. Even though the docs looks scary because of lack of enough documentation, the API itself is pretty straightforward and easy to use.
+
+There's too few articels about gfx-rs and almost no tutorials. I hope this litte tutorial will help other people to get into graphics programming on Rust and makes the learning less steep.
+
+## Resources
+
+There're two great resouces about OpenGL: [Learn OpenGL](https://learnopengl.com/) and [opengl-tutorial](http://opengl-tutorial.org/). They explain basic graphics programming principles in much detail, providing great examples and illustrations.
+
+I also strongly advice you the [gfx-rs gitter](https://gitter.im/gfx-rs/gfx). It is not only welcoming, but also very helpful, writing this tutorial would be much harder without their help.
+
+[The Book of Shaders](https://thebookofshaders.com/) is an awesome book about fragment sharder. It is not only about the art of shader programming, but also about shader as *the art*. Shaders are not only about graphics in AAA games, they are an artist's tool as well. This book with a lot of beatiful examples will introduce you into the world of [creative coding](https://github.com/terkelg/awesome-creative-coding).
+
+## Source code
+
+The source code of sqtoy is available [on Github](https://github.com/suhr/sqtoy). And the source code of this tutorial is [available](https://github.com/suhr/gsgt) on Github too. Pull requests are welcome, especially pull requests to the tutorial: I'm neither a good writer nor a good English speaker, so there's probably tons things to improve.

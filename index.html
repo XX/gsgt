@@ -80,7 +80,7 @@ glutin = &quot;0.8&quot;</code></pre>
 <span class="kw">use</span> gfx::Device;
 <span class="kw">use</span> gfx_window_glutin <span class="kw">as</span> gfx_glutin;
 
-<span class="kw">pub</span> <span class="kw">type</span> ColorFormat = gfx::format::Rgba8;
+<span class="kw">pub</span> <span class="kw">type</span> ColorFormat = gfx::format::Srgba8;
 <span class="kw">pub</span> <span class="kw">type</span> DepthFormat = gfx::format::DepthStencil;
 
 <span class="kw">const</span> BLACK: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">4</span><span class="op">]</span> = <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span>, <span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>;
@@ -472,10 +472,10 @@ image = &quot;*&quot;</code></pre>
     view
 <span class="op">}</span></code></pre></div>
 <p>Add uv coordinates to vertices:</p>
-<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
-                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
-                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
-                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
 <p>And load the texture:</p>
 <div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">    <span class="kw">let</span> texture = load_texture(&amp;<span class="kw">mut</span> factory, <span class="st">&quot;assets/awesome.png&quot;</span>);
     <span class="kw">let</span> sampler = factory.create_sampler_linear();
@@ -495,5 +495,48 @@ Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="
 Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
 <p>And then...</p>
 <p><img src="https://i.imgur.com/8li9Csm.png" width="600" height="600" /></p>
+<p>Great! But what if you actually like plain colors more? We need a switch. We need a uniform.</p>
+<p>Uniforms are global constants of shaders. They are used to pass various information into shaders: transformation matices, mouse position or some kind of switch. There're two ways to create a uniform in gfx-rs, the first is to just declare a single value in the pipeline like this:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">switch: gfx::Global&lt;<span class="dt">i32</span>&gt; = <span class="st">&quot;i_Switch&quot;</span>,</code></pre></div>
+<p>The second way is to define a group of constants like</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">constant Globals <span class="op">{</span>
+    mx_vp: <span class="op">[[</span><span class="dt">f32</span>; <span class="dv">4</span><span class="op">]</span>; <span class="dv">4</span><span class="op">]</span> = <span class="st">&quot;u_ViewProj&quot;</span>,
+    num_lights: <span class="dt">u32</span> = <span class="st">&quot;u_NumLights&quot;</span>,
+<span class="op">}</span></code></pre></div>
+<p>and then create a constant buffer. We'll use the first way because it's the simplest one.</p>
+<p>So let's change the shader a little bit:</p>
+<div class="sourceCode"><pre class="sourceCode glsl"><code class="sourceCode glsl">    <span class="kw">if</span>(i_Switch == <span class="dv">0</span>) {
+        <span class="kw">if</span>(aw == <span class="dt">vec3</span>(<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>)) {
+            Target0 = <span class="fl">0.20</span> * v_Color;
+        } <span class="kw">else</span> {
+            Target0 = <span class="dt">vec4</span>(aw, <span class="fl">1.0</span>);
+        }
+    } <span class="kw">else</span> {
+        Target0 = v_Color;
+    }</code></pre></div>
+<p>And add some code:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">let</span> <span class="kw">mut</span> data = pipe::Data <span class="op">{</span>
+    vbuf: vertex_buffer,
+    awesome: (texture, sampler),
+    switch: <span class="dv">0</span>,
+    out: main_color
+<span class="op">}</span>;</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">    KeyboardInput(ElementState::Pressed, _, <span class="cn">Some</span>(VirtualKeyCode::Space), _) =&gt;
+        <span class="kw">if</span> data.switch == <span class="dv">0</span> <span class="op">{</span>
+            data.switch = <span class="dv">1</span>
+        <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span>
+            data.switch = <span class="dv">0</span>
+        <span class="op">}</span>,</code></pre></div>
+<p>And we are done.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Programming is the art of data transformation. Graphics programming is a great example of this statement: GPU does no magic by itself. You have to feed it with vertex data and define the transformations (shaders) so it could transform this data, in a simple and direct way, into another kind of data: array of pixels to be shown on the screen.</p>
+<p>Gfx-rs is a great library helping you with that. It provides a simple but clear and <em>rustic</em> way to interact with GPU. Even though the docs looks scary because of lack of enough documentation, the API itself is pretty straightforward and easy to use.</p>
+<p>There's too few articels about gfx-rs and almost no tutorials. I hope this litte tutorial will help other people to get into graphics programming on Rust and makes the learning less steep.</p>
+<h2 id="resources">Resources</h2>
+<p>There're two great resouces about OpenGL: <a href="https://learnopengl.com/">Learn OpenGL</a> and <a href="http://opengl-tutorial.org/">opengl-tutorial</a>. They explain basic graphics programming principles in much detail, providing great examples and illustrations.</p>
+<p>I also strongly advice you the <a href="https://gitter.im/gfx-rs/gfx">gfx-rs gitter</a>. It is not only welcoming, but also very helpful, writing this tutorial would be much harder without their help.</p>
+<p><a href="https://thebookofshaders.com/">The Book of Shaders</a> is an awesome book about fragment sharder. It is not only about the art of shader programming, but also about shader as <em>the art</em>. Shaders are not only about graphics in AAA games, they are an artist's tool as well. This book with a lot of beatiful examples will introduce you into the world of <a href="https://github.com/terkelg/awesome-creative-coding">creative coding</a>.</p>
+<h2 id="source-code">Source code</h2>
+<p>The source code of sqtoy is available <a href="https://github.com/suhr/sqtoy">on Github</a>. And the source code of this tutorial is <a href="https://github.com/suhr/gsgt">available</a> on Github too. Pull requests are welcome, especially pull requests to the tutorial: I'm neither a good writer nor a good English speaker, so there's probably tons things to improve.</p>
 </body>
 </html>
