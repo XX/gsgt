@@ -325,7 +325,7 @@ encoder.flush(&amp;<span class="kw">mut</span> device);</code></pre></div>
                     cube.update_ratio(w <span class="kw">as</span> <span class="dt">f32</span> / h <span class="kw">as</span> <span class="dt">f32</span>);
                     needs_update = <span class="cn">true</span>
                 <span class="op">}</span>,
-        <span class="co">// ... </span>
+        <span class="co">// ...</span>
     <span class="op">}</span>
 <span class="op">}</span></code></pre></div>
 <p>Great. Now our squares are always squares. Time to add some cursor:</p>
@@ -349,7 +349,7 @@ encoder.flush(&amp;<span class="kw">mut</span> device);</code></pre></div>
 <span class="kw">impl</span> Pseudocube <span class="op">{</span>
 <span class="co">// ...</span>
     <span class="kw">pub</span> <span class="kw">fn</span> update_cursor_position(&amp;<span class="kw">mut</span> <span class="kw">self</span>, x: <span class="dt">f32</span>, y: <span class="dt">f32</span>) <span class="op">{</span>
-        <span class="kw">let</span> x = <span class="dv">2.0</span>*x - <span class="dv">1.0</span>; 
+        <span class="kw">let</span> x = <span class="dv">2.0</span>*x - <span class="dv">1.0</span>;
         <span class="kw">let</span> y = -<span class="dv">2.0</span>*y + <span class="dv">1.0</span>;
         <span class="kw">let</span> cursor = <span class="kw">match</span> <span class="kw">self</span>.cursor <span class="op">{</span>
             Cursor::Plain(_, color) =&gt; Cursor::Plain((x, y), color),
@@ -409,5 +409,91 @@ rand = &quot;*&quot;</code></pre>
 <p>And squares were grown:</p>
 <p><img src="https://i.imgur.com/rumV7tU.png" width="600" height="600" /></p>
 <h2 id="textures-and-uniforms">Textures and uniforms</h2>
+<p>So, you can draw squares, you can move cursor around, what else do you need? Oh, I see. Graphics. Plain colors are boring, right? Let's add some <a href="https://learnopengl.com/#!Getting-started/Textures">texturing</a>:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="pp">gfx_defines!</span> <span class="op">{</span>
+    vertex Vertex <span class="op">{</span>
+        pos: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">2</span><span class="op">]</span> = <span class="st">&quot;a_Pos&quot;</span>,
+        uv: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">2</span><span class="op">]</span> = <span class="st">&quot;a_Uv&quot;</span>,
+        color: <span class="op">[</span><span class="dt">f32</span>; <span class="dv">3</span><span class="op">]</span> = <span class="st">&quot;a_Color&quot;</span>,
+    <span class="op">}</span>
+
+    pipeline pipe <span class="op">{</span>
+        vbuf: gfx::VertexBuffer&lt;Vertex&gt; = (),
+        awesome: gfx::TextureSampler&lt;<span class="op">[</span><span class="dt">f32</span>; <span class="dv">4</span><span class="op">]</span>&gt; = <span class="st">&quot;t_Awesome&quot;</span>,
+        out: gfx::RenderTarget&lt;ColorFormat&gt; = <span class="st">&quot;Target0&quot;</span>,
+    <span class="op">}</span>
+<span class="op">}</span></code></pre></div>
+<p>There are two changes here. The first is: vertices have got a new data: <code>a_Uv</code>. And if you think this can mean only one thing, you're right: yes, GPU doesn't know how to <em>exactly</em> draw textures. And yes, we use a fragment shader to determinate the behavior. <code>a_Uv</code> are coordinates of a texture fragment.</p>
+<p>The second change introduces <code>t_Awesome</code> texture in the pipeline. The texture is the same for all triangles drawn with this pipeline. But what if you want different squares to look different? Well, there're three ways. The first way is to switch textures for each square. This ways is slow because it requires a draw call for each square, you can't draw everything with one call. The second way is to put everything into one big texture (a texture atlas) and use uv coordinates to get a texture from the atlas. The third way is to use a texture array (if it's supported).</p>
+<p>We'll use neither of these ways, so our squares will have the same simple texture:</p>
+<p><img src="https://i.imgur.com/40VzkBZ.jpg" /></p>
+<p>So let's texture our squares. To do it, we need a crate to load images:</p>
+<pre class="toml"><code>[dependencies]
+image = &quot;*&quot;</code></pre>
+<p>And we need to modify our shaders a little bit:</p>
+<div class="sourceCode"><pre class="sourceCode glsl"><code class="sourceCode glsl"><span class="pp">#version 150 core</span>
+
+<span class="dt">in</span> <span class="dt">vec2</span> a_Pos;
+<span class="dt">in</span> <span class="dt">vec2</span> a_Uv;
+<span class="dt">in</span> <span class="dt">vec3</span> a_Color;
+<span class="dt">out</span> <span class="dt">vec4</span> v_Color;
+<span class="dt">out</span> <span class="dt">vec2</span> v_Uv;
+
+<span class="dt">void</span> <span class="fu">main</span>() {
+    v_Color = <span class="dt">vec4</span>(a_Color, <span class="fl">1.0</span>);
+    v_Uv = a_Uv;
+    <span class="bu">gl_Position</span> = <span class="dt">vec4</span>(a_Pos, <span class="fl">0.0</span>, <span class="fl">1.0</span>);
+}</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode glsl"><code class="sourceCode glsl"><span class="pp">#version 150 core</span>
+
+<span class="kw">uniform</span> <span class="dt">sampler2D</span> t_Awesome;
+
+<span class="dt">in</span> <span class="dt">vec4</span> v_Color;
+<span class="dt">in</span> <span class="dt">vec2</span> v_Uv;
+<span class="dt">out</span> <span class="dt">vec4</span> Target0;
+
+<span class="dt">void</span> <span class="fu">main</span>() {
+    <span class="dt">vec3</span> aw = <span class="bu">texture</span>(t_Awesome, v_Uv).<span class="fu">rgb</span>;
+
+    <span class="kw">if</span>(aw == <span class="dt">vec3</span>(<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>)) {
+        Target0 = <span class="fl">0.20</span> * v_Color;
+    } <span class="kw">else</span> {
+        Target0 = <span class="dt">vec4</span>(aw, <span class="fl">1.0</span>);
+    }
+}</code></pre></div>
+<p>And copypaste a function from <a href="https://wiki.alopex.li/LearningGfx">an another tutorial</a>:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="kw">fn</span> load_texture&lt;F, R&gt;(factory: &amp;<span class="kw">mut</span> F, path: &amp;<span class="dt">str</span>) -&gt; gfx::handle::ShaderResourceView&lt;R, <span class="op">[</span><span class="dt">f32</span>; <span class="dv">4</span><span class="op">]</span>&gt;
+    <span class="kw">where</span> F: gfx::Factory&lt;R&gt;, R: gfx::Resources
+<span class="op">{</span>
+    <span class="kw">let</span> img = image::open(path).unwrap().to_rgba();
+    <span class="kw">let</span> (width, height) = img.dimensions();
+    <span class="kw">let</span> kind = gfx::texture::Kind::D2(width <span class="kw">as</span> <span class="dt">u16</span>, height <span class="kw">as</span> <span class="dt">u16</span>, gfx::texture::AaMode::Single);
+    <span class="kw">let</span> (_, view) = factory.create_texture_immutable_u8::&lt;ColorFormat&gt;(kind, &amp;<span class="op">[</span>&amp;img<span class="op">]</span>).unwrap();
+    view
+<span class="op">}</span></code></pre></div>
+<p>Add uv coordinates to vertices:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+                Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
+<p>And load the texture:</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">    <span class="kw">let</span> texture = load_texture(&amp;<span class="kw">mut</span> factory, <span class="st">&quot;assets/awesome.png&quot;</span>);
+    <span class="kw">let</span> sampler = factory.create_sampler_linear();
+
+    <span class="kw">let</span> <span class="kw">mut</span> data = pipe::Data <span class="op">{</span>
+        vbuf: vertex_buffer,
+        awesome: (texture, sampler),
+        out: main_color
+    <span class="op">}</span>;</code></pre></div>
+<p>Ta-da:</p>
+<p><img src="https://i.imgur.com/jeKLvoc.png" width="600" height="600" /></p>
+<p>Oh no. The black is still black and the image is upside down. Well, the first is the bug of the image itself (that's what you get for downloading JPEG from the Internet), but why it's upside down?</p>
+<p>Well, the reason is simple. Image coordinates have y-axis up-down, while in OpenGL y axis is always down-up. So the most obvious solution is to flip the image. But there's a more simple way: we can flip uv coordinates instead.</p>
+<div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> - hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">1.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
+Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
+<p>And then...</p>
+<p><img src="https://i.imgur.com/8li9Csm.png" width="600" height="600" /></p>
 </body>
 </html>

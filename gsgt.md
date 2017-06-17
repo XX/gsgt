@@ -442,3 +442,129 @@ And squares were grown:
 ![](https://i.imgur.com/rumV7tU.png){width=600px height=600px}
 
 ## Textures and uniforms
+
+So, you can draw squares, you can move cursor around, what else do you need? Oh, I see. Graphics. Plain colors are boring, right? Let's add some [texturing](https://learnopengl.com/#!Getting-started/Textures):
+
+```rust
+gfx_defines! {
+    vertex Vertex {
+        pos: [f32; 2] = "a_Pos",
+        uv: [f32; 2] = "a_Uv",
+        color: [f32; 3] = "a_Color",
+    }
+
+    pipeline pipe {
+        vbuf: gfx::VertexBuffer<Vertex> = (),
+        awesome: gfx::TextureSampler<[f32; 4]> = "t_Awesome",
+        out: gfx::RenderTarget<ColorFormat> = "Target0",
+    }
+}
+```
+
+There are two changes here. The first is: vertices have got a new data: `a_Uv`. And if you think this can mean only one thing, you're right: yes, GPU doesn't know how to *exactly* draw textures. And yes, we use a fragment shader to determinate the behavior. `a_Uv` are coordinates of a texture fragment.
+
+The second change introduces `t_Awesome` texture in the pipeline. The texture is the same for all triangles drawn with this pipeline. But what if you want different squares to look different? Well, there're three ways. The first way is to switch textures for each square. This ways is slow because it requires a draw call for each square, you can't draw everything with one call. The second way is to put everything into one big texture (a texture atlas) and use uv coordinates to get a texture from the atlas. The third way is to use a texture array (if it's supported).
+
+We'll use neither of these ways, so our squares will have the same simple texture:
+
+![](https://i.imgur.com/40VzkBZ.jpg)
+
+So let's texture our squares. To do it, we need a crate to load images:
+
+```toml
+[dependencies]
+image = "*"
+```
+
+And we need to modify our shaders a little bit:
+
+```glsl
+#version 150 core
+
+in vec2 a_Pos;
+in vec2 a_Uv;
+in vec3 a_Color;
+out vec4 v_Color;
+out vec2 v_Uv;
+
+void main() {
+    v_Color = vec4(a_Color, 1.0);
+    v_Uv = a_Uv;
+    gl_Position = vec4(a_Pos, 0.0, 1.0);
+}
+```
+
+```glsl
+#version 150 core
+
+uniform sampler2D t_Awesome;
+
+in vec4 v_Color;
+in vec2 v_Uv;
+out vec4 Target0;
+
+void main() {
+    vec3 aw = texture(t_Awesome, v_Uv).rgb;
+
+    if(aw == vec3(0.0, 0.0, 0.0)) {
+        Target0 = 0.20 * v_Color;
+    } else {
+        Target0 = vec4(aw, 1.0);
+    }
+}
+```
+
+And copypaste a function from [an another tutorial](https://wiki.alopex.li/LearningGfx):
+
+```rust
+fn load_texture<F, R>(factory: &mut F, path: &str) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
+    where F: gfx::Factory<R>, R: gfx::Resources
+{
+    let img = image::open(path).unwrap().to_rgba();
+    let (width, height) = img.dimensions();
+    let kind = gfx::texture::Kind::D2(width as u16, height as u16, gfx::texture::AaMode::Single);
+    let (_, view) = factory.create_texture_immutable_u8::<ColorFormat>(kind, &[&img]).unwrap();
+    view
+}
+```
+
+Add uv coordinates to vertices:
+
+```rust
+                Vertex { pos: [pos.0 + hx, pos.1 - hy], uv: [1.0, 0.0], color: sq.color },
+                Vertex { pos: [pos.0 - hx, pos.1 - hy], uv: [0.0, 0.0], color: sq.color },
+                Vertex { pos: [pos.0 - hx, pos.1 + hy], uv: [0.0, 1.0], color: sq.color },
+                Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 1.0], color: sq.color },
+```
+
+And load the texture:
+
+```rust
+    let texture = load_texture(&mut factory, "assets/awesome.png");
+    let sampler = factory.create_sampler_linear();
+
+    let mut data = pipe::Data {
+        vbuf: vertex_buffer,
+        awesome: (texture, sampler),
+        out: main_color
+    };
+```
+
+Ta-da:
+
+![](https://i.imgur.com/jeKLvoc.png){width=600px height=600px}
+
+Oh no. The black is still black and the image is upside down. Well, the first is the bug of the image itself (that's what you get for downloading JPEG from the Internet), but why it's upside down?
+
+Well, the reason is simple. Image coordinates have y-axis up-down, while in OpenGL y axis is always down-up. So the most obvious solution is to flip the image. But there's a more simple way: we can flip uv coordinates instead.
+
+```rust
+Vertex { pos: [pos.0 + hx, pos.1 - hy], uv: [1.0, 1.0], color: sq.color },
+Vertex { pos: [pos.0 - hx, pos.1 - hy], uv: [0.0, 1.0], color: sq.color },
+Vertex { pos: [pos.0 - hx, pos.1 + hy], uv: [0.0, 0.0], color: sq.color },
+Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 0.0], color: sq.color },
+```
+
+And then...
+
+![](https://i.imgur.com/8li9Csm.png){width=600px height=600px}
