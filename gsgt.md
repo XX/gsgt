@@ -85,7 +85,7 @@ Great! Whatever you use, it is always simple to draw a black screen full of noth
 
 ## Overview of gfx-rs architecture
 
-![](https://i.imgur.com/Dgj7PX8.jpg)
+![AbstractSingletonProxyFactoryBean](https://i.imgur.com/Dgj7PX8.jpg){title="A typical programmer experience. Fortunately, Gfx-rs is not like that."}
 
 Gfx-rs is a library that abstracts over four low-level graphics APIs: OpenGL (ordinary and ES), DirectX, Metal and Vulkan. Because of that, it cannot provide a direct API to do things. Neither it should though, as graphics APIs (especially older one like OpenGL) are extremely verbose, imperative and stateful. Also they are neither safe nor easy to use.
 
@@ -439,7 +439,7 @@ impl Pseudocube {
 
 And squares were grown:
 
-![](https://i.imgur.com/rumV7tU.png){width=600px height=600px}
+![](https://i.imgur.com/rumV7tU.png){width=600px height=600px title="This is not a modern art."}
 
 ## Textures and uniforms
 
@@ -467,7 +467,7 @@ The second change introduces `t_Awesome` texture in the pipeline. The texture is
 
 We'll use neither of these ways, so our squares will have the same simple texture:
 
-![](https://i.imgur.com/40VzkBZ.jpg)
+![](https://i.imgur.com/40VzkBZ.jpg){title=":awesome:"}
 
 So let's texture our squares. To do it, we need a crate to load images:
 
@@ -567,7 +567,7 @@ Vertex { pos: [pos.0 + hx, pos.1 + hy], uv: [1.0, 0.0], color: sq.color },
 
 And then...
 
-![](https://i.imgur.com/8li9Csm.png){width=600px height=600px}
+![](https://i.imgur.com/8li9Csm.png){width=600px height=600px title="Really :awesome:"}
 
 Great! But what if you actually like plain colors more? We need a switch. We need a uniform.
 

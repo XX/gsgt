@@ -132,7 +132,7 @@ glutin = &quot;0.8&quot;</code></pre>
 </ol>
 <p>Great! Whatever you use, it is always simple to draw a black screen full of nothing. Unfortunately, drawing something else is usually a little bit more complicated. In gfx-rs it requires a pipeline, vertices, shaders...</p>
 <h2 id="overview-of-gfx-rs-architecture">Overview of gfx-rs architecture</h2>
-<p><img src="https://i.imgur.com/Dgj7PX8.jpg" /></p>
+<p><img src="https://i.imgur.com/Dgj7PX8.jpg" alt="AbstractSingletonProxyFactoryBean" title="A typical programmer experience. Fortunately, Gfx-rs is not like that." /></p>
 <p>Gfx-rs is a library that abstracts over four low-level graphics APIs: OpenGL (ordinary and ES), DirectX, Metal and Vulkan. Because of that, it cannot provide a direct API to do things. Neither it should though, as graphics APIs (especially older one like OpenGL) are extremely verbose, imperative and stateful. Also they are neither safe nor easy to use.</p>
 <p>In gfx-rs, everything is built around three core types: <code>Factory</code>, <code>Encoder</code> and <code>Device</code>. The first is used to create things, the second is a buffer that stores graphics commands to be executed by the <code>Device</code>, and the <code>Device</code> translates commands into low-level API calls.</p>
 <p>Also, like current-get API like DX12 and Vulcan but unlike OpenGL, the pipeline state is incapsulated in pipeline state objects (PSO). You can have a lot of PSOs and switch between them. But to create a PSO, first you have to define a pipeline and specify vertex atributes and uniforms.</p>
@@ -407,7 +407,7 @@ rand = &quot;*&quot;</code></pre>
 
             cube.tick();</code></pre></div>
 <p>And squares were grown:</p>
-<p><img src="https://i.imgur.com/rumV7tU.png" width="600" height="600" /></p>
+<p><img src="https://i.imgur.com/rumV7tU.png" title="This is not a modern art." width="600" height="600" /></p>
 <h2 id="textures-and-uniforms">Textures and uniforms</h2>
 <p>So, you can draw squares, you can move cursor around, what else do you need? Oh, I see. Graphics. Plain colors are boring, right? Let's add some <a href="https://learnopengl.com/#!Getting-started/Textures">texturing</a>:</p>
 <div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust"><span class="pp">gfx_defines!</span> <span class="op">{</span>
@@ -426,7 +426,7 @@ rand = &quot;*&quot;</code></pre>
 <p>There are two changes here. The first is: vertices have got a new data: <code>a_Uv</code>. And if you think this can mean only one thing, you're right: yes, GPU doesn't know how to <em>exactly</em> draw textures. And yes, we use a fragment shader to determinate the behavior. <code>a_Uv</code> are coordinates of a texture fragment.</p>
 <p>The second change introduces <code>t_Awesome</code> texture in the pipeline. The texture is the same for all triangles drawn with this pipeline. But what if you want different squares to look different? Well, there're three ways. The first way is to switch textures for each square. This ways is slow because it requires a draw call for each square, you can't draw everything with one call. The second way is to put everything into one big texture (a texture atlas) and use uv coordinates to get a texture from the atlas. The third way is to use a texture array (if it's supported).</p>
 <p>We'll use neither of these ways, so our squares will have the same simple texture:</p>
-<p><img src="https://i.imgur.com/40VzkBZ.jpg" /></p>
+<p><img src="https://i.imgur.com/40VzkBZ.jpg" title=":awesome:" /></p>
 <p>So let's texture our squares. To do it, we need a crate to load images:</p>
 <pre class="toml"><code>[dependencies]
 image = &quot;*&quot;</code></pre>
@@ -494,7 +494,7 @@ Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="
 Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> - hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">0.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,
 Vertex <span class="op">{</span> pos: <span class="op">[</span>pos.<span class="dv">0</span> + hx, pos.<span class="dv">1</span> + hy<span class="op">]</span>, uv: <span class="op">[</span><span class="dv">1.0</span>, <span class="dv">0.0</span><span class="op">]</span>, color: sq.color <span class="op">}</span>,</code></pre></div>
 <p>And then...</p>
-<p><img src="https://i.imgur.com/8li9Csm.png" width="600" height="600" /></p>
+<p><img src="https://i.imgur.com/8li9Csm.png" title="Really :awesome:" width="600" height="600" /></p>
 <p>Great! But what if you actually like plain colors more? We need a switch. We need a uniform.</p>
 <p>Uniforms are global constants of shaders. They are used to pass various information into shaders: transformation matices, mouse position or some kind of switch. There're two ways to create a uniform in gfx-rs, the first is to just declare a single value in the pipeline like this:</p>
 <div class="sourceCode"><pre class="sourceCode rust"><code class="sourceCode rust">switch: gfx::Global&lt;<span class="dt">i32</span>&gt; = <span class="st">&quot;i_Switch&quot;</span>,</code></pre></div>
