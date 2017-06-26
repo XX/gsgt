@@ -42,7 +42,7 @@ pub fn main() {
         .with_title("Square Toy".to_string())
         .with_dimensions(800, 800)
         .with_vsync();
-    let (window, mut device, mut factory, main_color, mut main_depth) =
+    let (window, mut device, mut factory, mut main_color, mut main_depth) =
         gfx_glutin::init::<ColorFormat, DepthFormat>(builder, &events_loop);
 
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
