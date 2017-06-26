@@ -658,12 +658,18 @@ let mut data = pipe::Data {
 ```
 
 ```rust
-    KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Space), _) =>
-        if data.switch == 0 {
-            data.switch = 1
-        } else {
-            data.switch = 0
-        },
+            use glutin::{MouseButton, ElementState, VirtualKeyCode};
+            match event {
+            // ...
+            
+                KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Space), _) =>
+                    if data.switch == 0 {
+                        data.switch = 1
+                    } else {
+                        data.switch = 0
+                    },
+                _ => (),
+            }
 ```
 
 And we are done.
