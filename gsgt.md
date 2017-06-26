@@ -431,7 +431,6 @@ rand = "*"
 ```
 
 ```rust
-// ...
 extern crate rand;
 // ...
 impl Pseudocube {
@@ -512,9 +511,7 @@ image = "*"
 ```
 
 ```rust
-// ...
 extern crate image;
-// ...
 ```
 
 And we need to modify our shaders a little bit:
@@ -632,7 +629,6 @@ and then create a constant buffer. We'll use the first way because it's the simp
 So let's change the shader a little bit:
 
 ```glsl
-// ...
 uniform int i_Switch;
 // ...
     if(i_Switch == 0) {
@@ -649,19 +645,16 @@ uniform int i_Switch;
 And add some code:
 
 ```rust
-let mut data = pipe::Data {
-    vbuf: vertex_buffer,
-    awesome: (texture, sampler),
-    switch: 0,
-    out: main_color
-};
-```
-
-```rust
+    let mut data = pipe::Data {
+        vbuf: vertex_buffer,
+        awesome: (texture, sampler),
+        switch: 0,
+        out: main_color
+    };
+    // ...
             use glutin::{MouseButton, ElementState, VirtualKeyCode};
             match event {
             // ...
-            
                 KeyboardInput(ElementState::Pressed, _, Some(VirtualKeyCode::Space), _) =>
                     if data.switch == 0 {
                         data.switch = 1
