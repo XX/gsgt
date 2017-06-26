@@ -179,7 +179,7 @@ let mut data = pipe::Data {
 };
 ```
 
-Since `main_color` is moved into `data`, we need to replace `&main_color` with `&data.out` everywhere. And then, in the event loop, we draw:
+Since `main_color` is moved into `data`, we need to replace `&main_color` with `&data.out` everywhere and remove `mut` keyword for `main_color` in  the `let` statement. And then, in the event loop, we draw:
 
 ```rust
 encoder.clear(&data.out, BLACK);
