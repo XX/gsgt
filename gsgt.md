@@ -365,9 +365,30 @@ impl Cursor {
 }
 
 // ...
+struct Pseudocube {
+    cursor: Cursor,
+    squares: Vec<Square>,
+    ratio: f32,
+}
 
 impl Pseudocube {
-// ...
+    pub fn new() -> Self {
+        Pseudocube {
+            cursor: Cursor::Plain((0.0, 0.0), WHITE),
+            squares: vec![],
+            ratio: 1.0,
+        }
+    }
+    
+    // ...
+    
+    pub fn get_vertices_indices(&self) -> (Vec<Vertex>, Vec<u16>) {
+        let (mut vs, mut is) = (vec![], vec![]);
+        let cursor = self.cursor.to_square();
+
+        for (i, sq) in self.squares.iter().chain(Some(&cursor)).enumerate() {
+    // ...
+    
     pub fn update_cursor_position(&mut self, x: f32, y: f32) {
         let x = 2.0*x - 1.0;
         let y = -2.0*y + 1.0;
