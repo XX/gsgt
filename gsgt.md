@@ -379,6 +379,11 @@ impl Pseudocube {
     }
 }
 // ...
+    let mut running = true;
+    let mut needs_update = false;
+    let mut window_size = (800.0, 800.0);
+    while running {
+// ...
                 Resized(w, h) => {
                     gfx_glutin::update_views(&window, &mut data.out, &mut main_depth);
                     cube.update_ratio(w as f32 / h as f32);
