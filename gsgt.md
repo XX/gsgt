@@ -511,6 +511,12 @@ So let's texture our squares. To do it, we need a crate to load images:
 image = "*"
 ```
 
+```rust
+// ...
+extern crate image;
+// ...
+```
+
 And we need to modify our shaders a little bit:
 
 ```glsl
