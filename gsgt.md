@@ -632,6 +632,9 @@ and then create a constant buffer. We'll use the first way because it's the simp
 So let's change the shader a little bit:
 
 ```glsl
+// ...
+uniform int i_Switch;
+// ...
     if(i_Switch == 0) {
         if(aw == vec3(0.0, 0.0, 0.0)) {
             Target0 = 0.20 * v_Color;
