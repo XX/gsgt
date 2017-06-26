@@ -431,6 +431,9 @@ rand = "*"
 ```
 
 ```rust
+// ...
+extern crate rand;
+// ...
 impl Pseudocube {
 // ...
     pub fn start_growing(&mut self) {
@@ -453,6 +456,11 @@ impl Pseudocube {
     }
 }
 // ...
+        events_loop.poll_events(|glutin::Event::WindowEvent { window_id: _, event }| {
+            use glutin::WindowEvent::*;
+            use glutin::{MouseButton, ElementState};
+            match event {
+            // ...
                 MouseInput(ElementState::Pressed, MouseButton::Left) =>
                     cube.start_growing(),
                 MouseInput(ElementState::Released, MouseButton::Left) =>
@@ -461,6 +469,7 @@ impl Pseudocube {
             }
 
             cube.tick();
+        });
 ```
 
 And squares were grown:
